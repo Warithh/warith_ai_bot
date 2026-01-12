@@ -1,69 +1,61 @@
 import os
+import requests
 from fastapi import FastAPI, Request
-from telegram import Update
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
-)
 
 # =====================
-# CONFIG
+# إعدادات
 # =====================
-TOKEN = os.environ.get("TELEGRAM_TOKEN")
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+API_URL = f"https://api.telegram.org/bot{TOKEN}"
 
 WELCOME_TEXT = """
 🤖 Warith AI Assistant
 
 مساعد ذكي للطلاب والتقنيين
-• شرح تقني وتعليمي
-• إجابات فورية
-• دعم 24/7
+إجابات فورية • شرح مبسّط • دعم 24/7
 
 👤 المطوّر:
 Warith Al-Awadi
 """
 
-# =====================
-# INIT
-# =====================
 app = FastAPI()
-application = Application.builder().token(TOKEN).build()
 
 # =====================
-# HANDLERS
+# إرسال رسالة
 # =====================
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(WELCOME_TEXT)
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    await update.message.reply_text(
-        f"📩 رسالتك وصلت:\n\n{text}\n\n✅ أنا جاهز للمساعدة في أي وقت."
-    )
-
-application.add_handler(CommandHandler("start", start))
-application.add_handler(
-    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-)
+def send_message(chat_id: int, text: str):
+    url = f"{API_URL}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text
+    }
+    requests.post(url, json=payload)
 
 # =====================
-# FASTAPI ROUTES
+# Root (لـ Render)
 # =====================
 @app.get("/")
-async def root():
-    return {
-        "ok": True,
-        "service": "Warith AI Assistant",
-        "status": "running",
-        "mode": "webhook",
-    }
+def root():
+    return {"status": "Warith AI Assistant is running"}
 
+# =====================
+# Webhook
+# =====================
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
-    update = Update.de_json(data, application.bot)
-    await application.process_update(update)
+
+    if "message" in data:
+        message = data["message"]
+        chat_id = message["chat"]["id"]
+        text = message.get("text", "")
+
+        if text == "/start":
+            send_message(chat_id, WELCOME_TEXT)
+        else:
+            send_message(
+                chat_id,
+                f"📩 رسالتك:\n{text}\n\n🤖 سأجيبك قريبًا بإذن الله"
+            )
+
     return {"ok": True}
