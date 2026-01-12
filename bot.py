@@ -1,70 +1,81 @@
 import os
 from fastapi import FastAPI, Request
 import telegram
-from telegram.constants import ParseMode
-from openai import OpenAI
 
-# ====== ENV ======
-BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# ===============================
+# إعدادات أساسية
+# ===============================
 
-bot = telegram.Bot(token=BOT_TOKEN)
+TOKEN = os.environ.get("TELEGRAM_TOKEN")
+
+bot = telegram.Bot(token=TOKEN)
 app = FastAPI()
-client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ===============================
+# نص الترحيب الرسمي
+# ===============================
 
 WELCOME_TEXT = """
-🤖 *Warith AI Assistant*
+🤖 Warith AI Assistant
 
-مساعد ذكي للطلاب والتقنيين 👨‍🎓👩‍💻  
-• شرح مبسّط  
-• إجابة أي سؤال  
-• برمجة • تقنية • دراسة  
-• يعمل 24/7 ⏱️  
+مساعد ذكي للطلاب والتقنيين
+إجابات فورية • شرح مبسّط • دعم 24/7
 
-👤 المطوّر:  
-*Warith Al-Awadi*
+📚 أقدر أساعدك في:
+• البرمجة
+• التكنولوجيا
+• الذكاء الاصطناعي
+• الشرح والدراسة
+
+👤 المطوّر:
+Warith Al-Awadi
 """
+
+# ===============================
+# فحص أن الخدمة تعمل
+# ===============================
 
 @app.get("/")
 async def root():
-    return {"status": "running"}
+    return {
+        "ok": True,
+        "service": "Warith AI Assistant",
+        "status": "running",
+        "mode": "webhook"
+    }
+
+# ===============================
+# Webhook Telegram
+# ===============================
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
     update = telegram.Update.de_json(data, bot)
 
-    if update.message and update.message.text:
+    if update.message:
         chat_id = update.message.chat.id
-        text = update.message.text
+        text = update.message.text or ""
 
         # /start
-        if text == "/start":
+        if text.startswith("/start"):
             bot.send_message(
                 chat_id=chat_id,
-                text=WELCOME_TEXT,
-                parse_mode=ParseMode.MARKDOWN
+                text=WELCOME_TEXT
             )
             return {"ok": True}
 
-        # AI response
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4.1-mini",
-                messages=[
-                    {"role": "system", "content": "أنت مساعد ذكي عربي للطلاب والتقنيين."},
-                    {"role": "user", "content": text}
-                ]
-            )
-
-            reply = response.choices[0].message.content
-
-        except Exception as e:
-            reply = "⚠️ حدث خطأ مؤقت، حاول مرة أخرى."
-
+        # أي رسالة أخرى
         bot.send_message(
             chat_id=chat_id,
-            text=reply
+            text=f"""
+🧠 Warith AI Assistant
+
+وصلني سؤالك:
+{text}
+
+✍️ اكتب أي سؤال تقني أو دراسي وسأساعدك فورًا.
+"""
         )
 
     return {"ok": True}
