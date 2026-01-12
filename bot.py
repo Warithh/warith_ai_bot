@@ -9,48 +9,49 @@ from telegram.ext import (
     filters,
 )
 
-# ======================
+# =====================
 # CONFIG
-# ======================
+# =====================
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 
 WELCOME_TEXT = """
 🤖 Warith AI Assistant
 
 مساعد ذكي للطلاب والتقنيين
+• شرح تقني وتعليمي
 • إجابات فورية
-• شرح مبسّط
-• دعم تقني وتعليمي
-• يعمل 24/7
+• دعم 24/7
 
 👤 المطوّر:
 Warith Al-Awadi
 """
 
-# ======================
-# APP INIT
-# ======================
+# =====================
+# INIT
+# =====================
 app = FastAPI()
 application = Application.builder().token(TOKEN).build()
 
-# ======================
+# =====================
 # HANDLERS
-# ======================
+# =====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(WELCOME_TEXT)
 
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_text = update.message.text
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
     await update.message.reply_text(
-        f"📩 استلمت رسالتك:\n\n{user_text}\n\n✅ البوت يعمل 24/7"
+        f"📩 رسالتك وصلت:\n\n{text}\n\n✅ أنا جاهز للمساعدة في أي وقت."
     )
 
 application.add_handler(CommandHandler("start", start))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+application.add_handler(
+    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+)
 
-# ======================
+# =====================
 # FASTAPI ROUTES
-# ======================
+# =====================
 @app.get("/")
 async def root():
     return {
