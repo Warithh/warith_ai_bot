@@ -1,81 +1,68 @@
 import os
 from fastapi import FastAPI, Request
-import telegram
+from telegram import Update
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
 
-# ===============================
-# إعدادات أساسية
-# ===============================
-
+# ======================
+# CONFIG
+# ======================
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
-
-bot = telegram.Bot(token=TOKEN)
-app = FastAPI()
-
-# ===============================
-# نص الترحيب الرسمي
-# ===============================
 
 WELCOME_TEXT = """
 🤖 Warith AI Assistant
 
 مساعد ذكي للطلاب والتقنيين
-إجابات فورية • شرح مبسّط • دعم 24/7
-
-📚 أقدر أساعدك في:
-• البرمجة
-• التكنولوجيا
-• الذكاء الاصطناعي
-• الشرح والدراسة
+• إجابات فورية
+• شرح مبسّط
+• دعم تقني وتعليمي
+• يعمل 24/7
 
 👤 المطوّر:
 Warith Al-Awadi
 """
 
-# ===============================
-# فحص أن الخدمة تعمل
-# ===============================
+# ======================
+# APP INIT
+# ======================
+app = FastAPI()
+application = Application.builder().token(TOKEN).build()
 
+# ======================
+# HANDLERS
+# ======================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(WELCOME_TEXT)
+
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = update.message.text
+    await update.message.reply_text(
+        f"📩 استلمت رسالتك:\n\n{user_text}\n\n✅ البوت يعمل 24/7"
+    )
+
+application.add_handler(CommandHandler("start", start))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+
+# ======================
+# FASTAPI ROUTES
+# ======================
 @app.get("/")
 async def root():
     return {
         "ok": True,
         "service": "Warith AI Assistant",
         "status": "running",
-        "mode": "webhook"
+        "mode": "webhook",
     }
-
-# ===============================
-# Webhook Telegram
-# ===============================
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
-    update = telegram.Update.de_json(data, bot)
-
-    if update.message:
-        chat_id = update.message.chat.id
-        text = update.message.text or ""
-
-        # /start
-        if text.startswith("/start"):
-            bot.send_message(
-                chat_id=chat_id,
-                text=WELCOME_TEXT
-            )
-            return {"ok": True}
-
-        # أي رسالة أخرى
-        bot.send_message(
-            chat_id=chat_id,
-            text=f"""
-🧠 Warith AI Assistant
-
-وصلني سؤالك:
-{text}
-
-✍️ اكتب أي سؤال تقني أو دراسي وسأساعدك فورًا.
-"""
-        )
-
+    update = Update.de_json(data, application.bot)
+    await application.process_update(update)
     return {"ok": True}
